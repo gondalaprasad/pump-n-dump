@@ -376,10 +376,12 @@ function getSel(){
 
 // ── PROXY + CONNECTION TEST ────────────────────────
 const PROXIES = [
-  { name:'corsproxy.io',    mk: u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}` },
   { name:'allorigins',      mk: u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
   { name:'codetabs',        mk: u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+  { name:'corsproxy.io',    mk: u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}` },
   { name:'thingproxy',      mk: u=>`https://thingproxy.freeboard.io/fetch/${u}` },
+  { name:'jsonp.afeld.me',  mk: u=>`https://jsonp.afeld.me/?url=${encodeURIComponent(u)}` },
+  { name:'corsproxy.raz1',  mk: u=>`https://corsproxy.raz1.workers.dev/?url=${encodeURIComponent(u)}` },
 ];
 let workingProxy = null; // cache which proxy works
 
