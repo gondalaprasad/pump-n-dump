@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NSE/BSE Pump & Dump Scanner</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap');
+  :root {
+    --bg:#040810; --bg2:#070e1a; --bg3:#0a1520;
+    --border:#0f2a45; --border-hi:#1a4a7a;
+    --blue:#3a9fff; --blue-dim:#1a5a99;
+    --green:#00e87a; --red:#ff3d1f; --orange:#ff9d00;
+    --text:#b8d4f0; --text-dim:#4a6a8a; --text-bright:#e8f4ff;
+    --mono:'Share Tech Mono',monospace; --sans:'Rajdhani',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 10% 20%,rgba(0,60,120,.12) 0%,transparent 60%),radial-gradient(ellipse 40% 60% at 90% 80%,rgba(0,30,80,.1) 0%,transparent 60%);pointer-events:none;z-index:0;}
+  .wrap{max-width:1400px;margin:0 auto;padding:24px;position:relative;z-index:1;}
+  .header{margin-bottom:24px;border-bottom:1px solid var(--border);padding-bottom:18px;}
+  .header-label{color:var(--blue);font-size:10px;letter-spacing:5px;margin-bottom:6px;}
+  .header h1{font-family:var(--sans);font-size:24px;font-weight:700;color:var(--text-bright);}
+  .header p{color:var(--text-dim);font-size:11px;margin-top:5px;}
+  .panel{background:var(--bg2);border:1px solid var(--border);padding:18px 20px;margin-bottom:14px;}
+  .panel-title{font-size:10px;letter-spacing:3px;color:var(--text-dim);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .panel-title::after{content:'';flex:1;height:1px;background:var(--border);}
+  .tabs{display:flex;gap:2px;margin-bottom:14px;}
+  .tab{padding:8px 18px;font-family:var(--mono);font-size:11px;letter-spacing:2px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--text-dim);transition:all .2s;}
+  .tab.active{border-color:var(--blue);color:var(--blue);background:rgba(58,159,255,.07);}
+  .tab:hover:not(.active){border-color:var(--border-hi);color:var(--text);}
+  .input-row{display:flex;gap:10px;align-items:stretch;}
+  .ticker-wrap{flex:1;border:1px solid var(--border);background:var(--bg);display:flex;align-items:flex-start;padding:10px 14px;}
+  .ticker-wrap span{color:var(--blue);margin-right:8px;margin-top:2px;font-size:13px;}
+  textarea.ti{background:transparent;border:none;outline:none;color:var(--text-bright);font-family:var(--mono);font-size:13px;padding:0;flex:1;resize:vertical;min-height:80px;line-height:1.7;letter-spacing:.5px;}
+  textarea.ti::placeholder{color:var(--text-dim);}
+  .btn{padding:10px 18px;font-family:var(--mono);font-size:11px;letter-spacing:2px;cursor:pointer;border:1px solid var(--blue-dim);background:rgba(58,159,255,.08);color:var(--blue);transition:all .2s;white-space:nowrap;}
+  .btn:hover:not(:disabled){border-color:var(--blue);background:rgba(58,159,255,.15);}
+  .btn:disabled{opacity:.35;cursor:default;}
+  .btn.green{border-color:#007a40;background:rgba(0,232,122,.06);color:var(--green);}
+  .btn.green:hover:not(:disabled){border-color:var(--green);}
+  .btn.red{border-color:#7a2010;background:rgba(255,61,31,.06);color:var(--red);}
+  .upload-zone{border:1px dashed var(--border-hi);padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);}
+  .upload-zone:hover,.upload-zone.drag{border-color:var(--blue);background:rgba(58,159,255,.04);}
+  .upload-zone .ico{font-size:26px;margin-bottom:8px;}
+  .upload-zone p{color:var(--text-dim);font-size:11px;line-height:1.9;}
+  #fileInput{display:none;}
+  .table-ctrl{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+  .search-box{flex:1;min-width:180px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);color:var(--text-bright);font-family:var(--mono);font-size:12px;outline:none;}
+  .search-box:focus{border-color:var(--blue-dim);}
+  .tbl-wrap{max-height:340px;overflow-y:auto;border:1px solid var(--border);}
+  table{width:100%;border-collapse:collapse;}
+  th{background:var(--bg3);color:var(--text-dim);font-size:10px;letter-spacing:2px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;}
+  td{padding:7px 12px;font-size:12px;border-bottom:1px solid #080f18;}
+  tr:hover td{background:rgba(58,159,255,.04);}
+  tr.sel td{background:rgba(58,159,255,.07);}
+  .g{color:var(--green);} .r{color:var(--red);} .b{color:var(--blue);} .d{color:var(--text-dim);}
+  .result-card{border:1px solid var(--border);background:var(--bg2);margin-bottom:14px;overflow:hidden;}
+  .result-hdr{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;background:var(--bg3);}
+  .rticker{font-family:var(--sans);font-size:20px;font-weight:700;color:var(--text-bright);letter-spacing:2px;}
+  .rname{color:var(--text-dim);font-size:11px;margin-top:2px;}
+  .price-row{display:flex;gap:18px;align-items:center;flex-wrap:wrap;}
+  .pi label{display:block;color:var(--text-dim);font-size:9px;letter-spacing:2px;margin-bottom:3px;}
+  .pi .v{font-size:15px;font-weight:bold;}
+  .risk-badge{padding:4px 12px;font-size:11px;font-weight:bold;letter-spacing:3px;border:1px solid;}
+  .rL{border-color:var(--green);color:var(--green);background:rgba(0,232,122,.08);}
+  .rM{border-color:var(--orange);color:var(--orange);background:rgba(255,157,0,.08);}
+  .rH{border-color:var(--red);color:var(--red);background:rgba(255,61,31,.08);}
+  .rE{border-color:#f00;color:#f00;background:rgba(255,0,0,.12);animation:gr 2s infinite;}
+  .rU{border-color:#88f;color:#88f;background:rgba(136,136,255,.08);}
+  @keyframes gr{0%,100%{box-shadow:0 0 4px rgba(255,0,0,.3)}50%{box-shadow:0 0 14px rgba(255,0,0,.6)}}
+  .rbody{padding:16px 18px;}
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px;}
+  .stat-box{background:var(--bg);border:1px solid var(--border);padding:12px 14px;}
+  .stat-box label{display:block;color:var(--text-dim);font-size:9px;letter-spacing:2px;margin-bottom:6px;}
+  .stat-val{font-size:26px;font-weight:bold;}
+  .bar-wrap{margin-bottom:14px;}
+  .bar-wrap label{font-size:9px;letter-spacing:2px;color:var(--text-dim);display:flex;justify-content:space-between;margin-bottom:6px;}
+  .bar-bg{height:5px;background:#0a1520;border-radius:2px;overflow:hidden;}
+  .bar-fill{height:100%;border-radius:2px;transition:width 1.2s ease;}
+  .chart-box{margin-bottom:14px;background:var(--bg);border:1px solid var(--border);padding:12px;}
+  .chart-box label{font-size:9px;letter-spacing:2px;color:var(--text-dim);display:block;margin-bottom:8px;}
+  .chart-svg{width:100%;display:block;}
+  .legend{display:flex;gap:14px;margin-top:6px;font-size:9px;color:var(--text-dim);flex-wrap:wrap;}
+  .events-list{margin-bottom:14px;}
+  .ev-item{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #080f18;font-size:12px;}
+  .ev-item:last-child{border-bottom:none;}
+  .ev-type{padding:1px 8px;font-size:9px;letter-spacing:1px;border:1px solid;white-space:nowrap;margin-top:1px;}
+  .ep{border-color:var(--green);color:var(--green);background:rgba(0,232,122,.07);}
+  .ed{border-color:var(--red);color:var(--red);background:rgba(255,61,31,.07);}
+  .epd{border-color:var(--orange);color:var(--orange);background:rgba(255,157,0,.07);}
+  .ev-date{color:var(--blue);min-width:65px;}
+  .summary-box{background:var(--bg);border-left:2px solid var(--blue-dim);padding:12px 16px;font-size:12px;line-height:1.8;color:var(--text);}
+  .prog-wrap{margin:10px 0;}
+  .prog-bg{height:3px;background:#0a1520;border-radius:1px;overflow:hidden;margin-bottom:6px;}
+  .prog-fill{height:100%;background:linear-gradient(90deg,var(--blue-dim),var(--blue));transition:width .4s;}
+  .prog-msg{font-size:11px;color:var(--blue);letter-spacing:1px;display:flex;align-items:center;gap:8px;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--blue);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.15}}
+  .err-box{border:1px solid #7a2010;background:#0d0302;padding:12px 16px;color:var(--red);font-size:12px;margin-bottom:10px;line-height:1.7;}
+  .info-box{border:1px solid var(--blue-dim);background:rgba(58,159,255,.05);padding:10px 14px;color:var(--text-dim);font-size:11px;margin-bottom:12px;line-height:1.7;}
+  .status-bar{position:fixed;bottom:0;left:0;right:0;background:#020508;border-top:1px solid var(--border);padding:6px 24px;display:flex;gap:20px;font-size:10px;color:var(--text-dim);z-index:100;}
+  .status-bar strong{color:var(--text);}
+  ::-webkit-scrollbar{width:4px;height:4px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border-hi);border-radius:2px;}
+  .hidden{display:none!important;}
+  .disclaimer{text-align:center;color:var(--text-dim);font-size:10px;padding:20px 0 50px;border-top:1px solid var(--border);margin-top:20px;}
+  select{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:11px;padding:4px 8px;}
+  .export-row{display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- DOWNLOAD WARNING -->
+<div id="previewWarn" style="background:#1a0800;border:2px solid var(--orange);padding:14px 18px;margin-bottom:18px;display:flex;gap:14px;align-items:center;">
+  <span style="font-size:22px;">⚠️</span>
+  <div>
+    <div style="color:var(--orange);font-size:13px;font-weight:bold;letter-spacing:1px;margin-bottom:4px;">DO NOT USE IN PREVIEW — MUST DOWNLOAD FIRST</div>
+    <div style="font-size:11px;color:var(--text-dim);line-height:1.7;">
+      This tool makes live requests to Yahoo Finance. The Claude.ai preview panel <strong style="color:var(--text);">blocks all external requests</strong>.<br>
+      👉 <strong style="color:var(--orange);">Download this HTML file → Open in Chrome or Edge → Then use it.</strong>
+    </div>
+  </div>
+</div>
+
+<!-- PROXY TEST -->
+<div class="panel" id="connPanel">
+  <div class="panel-title">CONNECTION TEST <span style="color:var(--text-dim);font-size:9px;letter-spacing:1px;">run this first after downloading</span></div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <button class="btn" onclick="testConnection()">▶ TEST YAHOO FINANCE CONNECTION</button>
+    <span id="connStatus" style="font-size:11px;color:var(--text-dim);">Click to verify data can be fetched</span>
+  </div>
+  <div id="connDetail" style="margin-top:8px;font-size:11px;color:var(--text-dim);line-height:1.8;"></div>
+</div>
+
+<div class="header">
+  <div class="header-label">NSE · BSE · MARKET INTELLIGENCE TERMINAL</div>
+  <h1>PUMP &amp; DUMP SCANNER — 52-WEEK LOW PROXIMITY</h1>
+  <p>100% Free · No API key · Real data from Yahoo Finance · Supports NSE &amp; BSE scrips · 1000+ symbols</p>
+</div>
+
+<div class="info-box">
+  ℹ️ Data fetched live from <strong style="color:var(--blue);">Yahoo Finance</strong> — completely free, no account needed. NSE symbols are used as-is (e.g. TATAMOTORS, SBIN). Upload a Bhavcopy to pre-fill today's prices instantly.
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('manual')">✎ MANUAL INPUT</button>
+  <button class="tab" onclick="switchTab('bhavcopy')">⇑ BHAVCOPY UPLOAD</button>
+</div>
+
+<!-- MANUAL -->
+<div id="tab-manual" class="panel">
+  <div class="panel-title">ENTER NSE SYMBOLS</div>
+  <div class="input-row">
+    <div class="ticker-wrap">
+      <span>₹</span>
+      <textarea class="ti" id="manualInput" placeholder="One per line or comma separated&#10;TATAMOTORS&#10;SBIN&#10;RMDRIP&#10;ZOTA&#10;GRMOVER&#10;...paste 1000+ symbols"></textarea>
+    </div>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
+    <span style="font-size:11px;color:var(--text-dim);" id="manualCount">0 symbols</span>
+    <button class="btn" onclick="loadManual()">LOAD SYMBOLS ▶</button>
+  </div>
+</div>
+
+<!-- BHAVCOPY -->
+<div id="tab-bhavcopy" class="panel hidden">
+  <div class="panel-title">UPLOAD BHAVCOPY CSV</div>
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+       ondragover="event.preventDefault();this.classList.add('drag')"
+       ondragleave="this.classList.remove('drag')"
+       ondrop="handleDrop(event)">
+    <div class="ico">📂</div>
+    <p><strong style="color:var(--text);">Drop NSE / BSE Bhavcopy CSV here</strong><br>or click to browse<br><br>
+    Auto-detects: SYMBOL, CLOSE, OPEN, HIGH, LOW, PREVCLOSE, SERIES</p>
+  </div>
+  <input type="file" id="fileInput" accept=".csv" onchange="handleFile(event)">
+  <div id="uploadStatus" style="margin-top:8px;font-size:11px;color:var(--text-dim);"></div>
+</div>
+
+<!-- SCRIP LIST -->
+<div id="scripPanel" class="panel hidden">
+  <div class="panel-title">SCRIP SELECTION</div>
+  <div class="table-ctrl">
+    <input type="text" class="search-box" placeholder="Search symbol..." oninput="filterTable(this.value)">
+    <button class="btn" onclick="selAll()">SELECT ALL</button>
+    <button class="btn" onclick="selNone()">CLEAR</button>
+    <button class="btn" onclick="selTop(50)">TOP 50</button>
+    <span style="font-size:11px;color:var(--blue);" id="selInfo">0 selected</span>
+  </div>
+  <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th style="width:36px;"><input type="checkbox" id="chkAll" onchange="toggleAll(this.checked)"></th>
+        <th>SYMBOL</th><th>SERIES</th>
+        <th style="text-align:right;">CLOSE ₹</th><th style="text-align:right;">HIGH ₹</th>
+        <th style="text-align:right;">LOW ₹</th><th style="text-align:right;">CHNG%</th>
+      </tr></thead>
+      <tbody id="tblBody"></tbody>
+    </table>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;flex-wrap:wrap;gap:10px;">
+    <span style="font-size:11px;color:var(--text-dim);" id="tblInfo">0 scrips</span>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span style="font-size:11px;color:var(--text-dim);">Batch size</span>
+      <select id="batchSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="10">10</option></select>
+      <button class="btn green" id="analyzeBtn" onclick="runAnalysis()" disabled>ANALYZE SELECTED ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div id="progPanel" class="panel hidden">
+  <div class="panel-title">FETCHING MARKET DATA</div>
+  <div class="prog-wrap">
+    <div class="prog-bg"><div class="prog-fill" id="progBar" style="width:0%"></div></div>
+    <div class="prog-msg"><div class="dot"></div><span id="progMsg">Initializing...</span></div>
+  </div>
+  <div style="margin-top:8px;font-size:11px;color:var(--text-dim);" id="progDetail"></div>
+</div>
+
+<div id="errBox" class="err-box hidden"></div>
+
+<!-- RESULTS -->
+<div id="resultsSection" class="hidden">
+  <div class="export-row">
+    <span style="font-size:11px;color:var(--text-dim);align-self:center;" id="resCount"></span>
+    <button class="btn" onclick="exportCSV()">⇓ EXPORT CSV</button>
+    <button class="btn red" onclick="clearAll()">✕ CLEAR</button>
+  </div>
+  <div id="resGrid"></div>
+</div>
+
+<div class="disclaimer">⚠ For research & informational purposes only. Not financial advice. Data from Yahoo Finance may have delays. Always do your own due diligence.</div>
+</div>
+
+<div class="status-bar">
+  <span>NSE/BSE SCANNER v3.0</span>
+  <span>FREE · NO API KEY</span>
+  <span>LOADED: <strong id="sbLoad">0</strong></span>
+  <span>ANALYZED: <strong id="sbDone">0</strong></span>
+  <span style="margin-left:auto;" id="sbTime"></span>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────
+let allScrips = [], filtered = [], results = [], busy = false;
+
+// ── TABS ──────────────────────────────────────────
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='manual')||(i===1&&t==='bhavcopy')));
+  document.getElementById('tab-manual').classList.toggle('hidden', t!=='manual');
+  document.getElementById('tab-bhavcopy').classList.toggle('hidden', t!=='bhavcopy');
+}
+
+// ── MANUAL INPUT ──────────────────────────────────
+document.getElementById('manualInput').addEventListener('input', function(){
+  const n = parseSyms(this.value).length;
+  document.getElementById('manualCount').textContent = n + ' symbol' + (n!==1?'s':'');
+});
+
+function parseSyms(txt){
+  return txt.split(/[\n,;]+/)
+    .map(s=>s.trim().toUpperCase().replace(/\.(NS|BO|BSE|NSE)$/i,''))
+    .filter(s=>s.length>0&&s.length<=20);
+}
+
+function loadManual(){
+  const syms = parseSyms(document.getElementById('manualInput').value);
+  if(!syms.length) return;
+  allScrips = syms.map(s=>({symbol:s,series:'EQ',close:null,open:null,high:null,low:null,prevClose:null,name:''}));
+  renderTable(allScrips);
+  document.getElementById('scripPanel').classList.remove('hidden');
+  document.getElementById('sbLoad').textContent = allScrips.length;
+}
+
+// ── BHAVCOPY ──────────────────────────────────────
+function handleDrop(e){
+  e.preventDefault(); document.getElementById('dropZone').classList.remove('drag');
+  if(e.dataTransfer.files[0]) parseCSV(e.dataTransfer.files[0]);
+}
+function handleFile(e){ if(e.target.files[0]) parseCSV(e.target.files[0]); }
+
+function parseCSV(file){
+  const reader = new FileReader();
+  reader.onload = e=>{
+    try{
+      const lines = e.target.result.trim().split('\n');
+      if(lines.length<2) throw new Error('CSV appears empty');
+      const hdr = lines[0].split(',').map(h=>h.trim().toUpperCase().replace(/"/g,''));
+      const col = (...names)=>{ for(const n of names){ const i=hdr.indexOf(n); if(i!==-1)return i; } return -1; };
+      const iSym=col('SYMBOL','SC_CODE','SCRIP_CD'), iSer=col('SERIES'),
+            iCls=col('CLOSE','CLOSE_PRICE','LTP'), iOpn=col('OPEN','OPEN_PRICE'),
+            iHi=col('HIGH','HIGH_PRICE'), iLo=col('LOW','LOW_PRICE'),
+            iPrv=col('PREVCLOSE','PREV_CLOSE'), iNm=col('NAME','SC_NAME','SCRIP_NAME');
+      if(iSym===-1) throw new Error('No SYMBOL column found. Headers: '+hdr.join(', '));
+      const scrips=[];
+      for(let i=1;i<lines.length;i++){
+        const row=lines[i].split(',').map(v=>v.trim().replace(/"/g,''));
+        if(!row[iSym]?.trim()) continue;
+        const rawSym = row[iSym].trim().toUpperCase();
+        // Strip exchange suffix for clean display symbol
+        const symbol = rawSym.replace(/\.(NS|BO|BSE|NSE)$/i,'').trim();
+        if(!symbol) continue;
+        scrips.push({
+          symbol,
+          series:iSer!==-1?row[iSer]:'EQ',
+          name:iNm!==-1?row[iNm]:'',
+          close:iCls!==-1?+row[iCls]||null:null,
+          open:iOpn!==-1?+row[iOpn]||null:null,
+          high:iHi!==-1?+row[iHi]||null:null,
+          low:iLo!==-1?+row[iLo]||null:null,
+          prevClose:iPrv!==-1?+row[iPrv]||null:null
+        });
+      }
+      allScrips=scrips;
+      document.getElementById('uploadStatus').innerHTML=`<span class="g">✓ Loaded ${scrips.length} scrips from ${file.name}</span>`;
+      renderTable(allScrips);
+      document.getElementById('scripPanel').classList.remove('hidden');
+      document.getElementById('sbLoad').textContent=allScrips.length;
+    }catch(err){
+      document.getElementById('uploadStatus').innerHTML=`<span class="r">⚠ ${err.message}</span>`;
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── TABLE ─────────────────────────────────────────
+function renderTable(scrips){
+  filtered=scrips;
+  const tb=document.getElementById('tblBody'); tb.innerHTML='';
+  scrips.forEach(s=>{
+    const chng=s.close&&s.prevClose?((s.close-s.prevClose)/s.prevClose*100).toFixed(2):null;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><input type="checkbox" class="ck" data-sym="${s.symbol}" onchange="updSel()"></td>
+      <td style="color:var(--text-bright);font-weight:bold;">${s.symbol}</td>
+      <td class="d">${s.series||'EQ'}</td>
+      <td style="text-align:right;" class="b">${s.close?'₹'+f2(s.close):'—'}</td>
+      <td style="text-align:right;" class="g">${s.high?'₹'+f2(s.high):'—'}</td>
+      <td style="text-align:right;" class="r">${s.low?'₹'+f2(s.low):'—'}</td>
+      <td style="text-align:right;" class="${chng>0?'g':chng<0?'r':'d'}">${chng?(chng>0?'+':'')+chng+'%':'—'}</td>`;
+    tb.appendChild(tr);
+  });
+  document.getElementById('tblInfo').textContent=scrips.length+' of '+allScrips.length+' shown';
+  updSel();
+}
+
+function filterTable(q){
+  q=q.toUpperCase().trim();
+  renderTable(q?allScrips.filter(s=>s.symbol.includes(q)||(s.name||'').toUpperCase().includes(q)):allScrips);
+}
+
+function updSel(){
+  const n=document.querySelectorAll('.ck:checked').length;
+  document.getElementById('selInfo').textContent=n+' selected';
+  document.getElementById('analyzeBtn').disabled=n===0||busy;
+  document.querySelectorAll('.ck').forEach(c=>c.closest('tr').classList.toggle('sel',c.checked));
+}
+
+function selAll(){document.querySelectorAll('.ck').forEach(c=>c.checked=true);updSel();}
+function selNone(){document.querySelectorAll('.ck').forEach(c=>c.checked=false);updSel();}
+function selTop(n){selNone();document.querySelectorAll('.ck').forEach((c,i)=>{if(i<n)c.checked=true;});updSel();}
+function toggleAll(v){document.querySelectorAll('.ck').forEach(c=>c.checked=v);updSel();}
+
+function getSel(){
+  const s=[];
+  document.querySelectorAll('.ck:checked').forEach(c=>{
+    const sc=allScrips.find(x=>x.symbol===c.dataset.sym);
+    if(sc)s.push(sc);
+  });
+  return s;
+}
+
+// ── PROXY + CONNECTION TEST ────────────────────────
+const PROXIES = [
+  { name:'corsproxy.io',    mk: u=>`https://corsproxy.io/?url=${encodeURIComponent(u)}` },
+  { name:'allorigins',      mk: u=>`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}` },
+  { name:'codetabs',        mk: u=>`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}` },
+  { name:'thingproxy',      mk: u=>`https://thingproxy.freeboard.io/fetch/${u}` },
+];
+let workingProxy = null; // cache which proxy works
+
+async function testProxy(proxy, testUrl) {
+  try {
+    const r = await fetch(proxy.mk(testUrl), { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return false;
+    const txt = await r.text();
+    return txt && txt.length > 50 && txt.includes('chart');
+  } catch { return false; }
+}
+
+async function testConnection() {
+  const btn = document.querySelector('#connPanel .btn');
+  const status = document.getElementById('connStatus');
+  const detail = document.getElementById('connDetail');
+  btn.disabled = true;
+  status.style.color = 'var(--blue)';
+  status.textContent = 'Testing proxies...';
+  detail.innerHTML = '';
+
+  const testUrl = 'https://query2.finance.yahoo.com/v8/finance/chart/RELIANCE.NS?interval=1wk&range=1mo';
+  let found = false;
+
+  for (const proxy of PROXIES) {
+    detail.innerHTML += `Testing <span style="color:var(--blue);">${proxy.name}</span>... `;
+    const ok = await testProxy(proxy, testUrl);
+    detail.innerHTML += ok
+      ? `<span class="g">✓ WORKING</span><br>`
+      : `<span class="r">✗ failed</span><br>`;
+    if (ok && !found) {
+      workingProxy = proxy;
+      found = true;
+    }
+  }
+
+  if (found) {
+    status.style.color = 'var(--green)';
+    status.textContent = `✓ Connected via ${workingProxy.name} — ready to analyze!`;
+  } else {
+    status.style.color = 'var(--red)';
+    status.textContent = '✗ All proxies failed';
+    detail.innerHTML += `<br><span style="color:var(--orange);">Make sure you opened this file in Chrome/Edge (not from Claude preview). Try disabling VPN or ad-blocker if any.</span>`;
+  }
+  btn.disabled = false;
+}
+
+async function fetchWithProxy(url) {
+  // If we know which proxy works, try it first
+  const ordered = workingProxy
+    ? [workingProxy, ...PROXIES.filter(p=>p!==workingProxy)]
+    : PROXIES;
+
+  for (const proxy of ordered) {
+    try {
+      const resp = await fetch(proxy.mk(url), { signal: AbortSignal.timeout(14000) });
+      if (!resp.ok) continue;
+      const text = await resp.text();
+      if (!text || text.length < 10) continue;
+      const data = JSON.parse(text);
+      workingProxy = proxy; // cache the one that worked
+      return data;
+    } catch { continue; }
+  }
+  return null;
+}
+
+async function fetchYahoo(rawSymbol) {
+  // Strip any existing exchange suffix so we control it ourselves
+  const base = rawSymbol.replace(/\.(NS|BO|BSE|NSE)$/i, '').trim();
+
+  // Try in order: .NS (NSE), .BO (BSE), bare
+  const tickers = [`${base}.NS`, `${base}.BO`, base];
+
+  for (const ticker of tickers) {
+    try {
+      const url = `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1wk&range=1y&includePrePost=false`;
+      const data = await fetchWithProxy(url);
+      if (!data) continue;
+      const res = data?.chart?.result?.[0];
+      if (!res) continue;
+      const timestamps = res.timestamp;
+      const q = res.indicators?.quote?.[0];
+      const closes = q?.close, highs = q?.high, lows = q?.low, opens = q?.open;
+      if (!timestamps || !closes || closes.length < 4) continue;
+
+      const weekly = [];
+      for (let i = 0; i < timestamps.length; i++) {
+        if (closes[i] != null && !isNaN(closes[i])) {
+          weekly.push({
+            date: new Date(timestamps[i]*1000).toISOString().slice(0,10),
+            open: opens?.[i] ?? null,
+            high: highs?.[i] ?? null,
+            low:  lows?.[i]  ?? null,
+            close: closes[i]
+          });
+        }
+      }
+      if (weekly.length < 4) continue;
+      const suffix = ticker.includes('.NS') ? '.NS' : ticker.includes('.BO') ? '.BO' : '';
+      return { weekly, suffix, name: res.meta?.longName || res.meta?.shortName || '' };
+    } catch(e) { continue; }
+  }
+  return null;
+}
+
+function analyzeData(scrip, yahooData, bhavClose) {
+  const { weekly } = yahooData;
+  const prices = weekly.map(w => w.close);
+  const highPrices = weekly.map(w => w.high).filter(v=>v!=null);
+  const lowPrices  = weekly.map(w => w.low).filter(v=>v!=null);
+
+  const low52w  = Math.min(...lowPrices.length ? lowPrices : prices);
+  const high52w = Math.max(...highPrices.length ? highPrices : prices);
+  const currentPrice = bhavClose || prices[prices.length-1];
+
+  // How many weeks came within 5% / 10% of 52-week low
+  let near5 = 0, near10 = 0;
+  weekly.forEach(w => {
+    const lo = w.low || w.close;
+    const pct = (lo - low52w) / low52w * 100;
+    if (pct <= 5)  near5++;
+    if (pct <= 10) near10++;
+  });
+
+  // Pump & dump detection
+  // Look for: week gain >15% (pump), followed within 4 weeks by drop >15% (dump)
+  const events = [];
+  for (let i = 1; i < weekly.length; i++) {
+    const prev = weekly[i-1].close, cur = weekly[i].close;
+    if (!prev || !cur) continue;
+    const chng = (cur - prev) / prev * 100;
+    if (chng >= 15) {
+      // Look ahead for dump
+      let dumped = false;
+      for (let j = i+1; j < Math.min(i+5, weekly.length); j++) {
+        const fwdChng = (weekly[j].close - cur) / cur * 100;
+        if (fwdChng <= -15) {
+          events.push({ date: weekly[i].date.slice(0,7), type: 'pump-dump',
+            description: `Surged +${chng.toFixed(0)}% then fell ${fwdChng.toFixed(0)}% within ${j-i} week(s)` });
+          dumped = true; i = j; break;
+        }
+      }
+      if (!dumped) {
+        events.push({ date: weekly[i].date.slice(0,7), type: 'pump',
+          description: `Sharp weekly gain of +${chng.toFixed(0)}% (₹${f2(prev)} → ₹${f2(cur)})` });
+      }
+    } else if (chng <= -15) {
+      events.push({ date: weekly[i].date.slice(0,7), type: 'dump',
+        description: `Sharp weekly drop of ${chng.toFixed(0)}% (₹${f2(prev)} → ₹${f2(cur)})` });
+    }
+  }
+
+  // Volatility: std deviation of weekly returns
+  const returns = [];
+  for (let i=1;i<prices.length;i++) returns.push((prices[i]-prices[i-1])/prices[i-1]*100);
+  const avgRet = returns.reduce((a,b)=>a+b,0)/returns.length;
+  const stdDev = Math.sqrt(returns.reduce((a,b)=>a+(b-avgRet)**2,0)/returns.length);
+
+  // Risk score
+  let score = 0;
+  score += Math.min(near5 * 8, 30);       // near low hits
+  score += Math.min(events.length * 12, 36); // pump/dump events
+  score += Math.min(stdDev * 2, 20);       // volatility
+  const range = (high52w - low52w) / low52w * 100;
+  score += Math.min(range / 5, 14);        // price range %
+  score = Math.round(Math.min(score, 100));
+
+  const riskLevel = score >= 75 ? 'EXTREME' : score >= 55 ? 'HIGH' : score >= 35 ? 'MEDIUM' : 'LOW';
+
+  // Summary
+  const fromLow = ((currentPrice - low52w) / low52w * 100).toFixed(1);
+  const fromHigh = ((currentPrice - high52w) / high52w * 100).toFixed(1);
+  let summary = `${scrip.symbol} is currently at ₹${f2(currentPrice)}, `;
+  summary += `${fromLow}% above its 52-week low of ₹${f2(low52w)} and ${fromHigh}% from its 52-week high of ₹${f2(high52w)}. `;
+  summary += `The stock touched the low-proximity zone ${near5} time(s) within 5% and ${near10} time(s) within 10% this year. `;
+  if (events.length > 0) summary += `${events.length} notable pump/dump event(s) detected. `;
+  summary += `Weekly volatility (σ): ${stdDev.toFixed(1)}%. `;
+  summary += riskLevel === 'EXTREME' ? 'EXTREME caution — high manipulation risk.' :
+             riskLevel === 'HIGH' ? 'High risk of price manipulation. Trade with caution.' :
+             riskLevel === 'MEDIUM' ? 'Moderate volatility — monitor closely.' : 'Relatively stable price action.';
+
+  return { ticker: scrip.symbol, companyName: yahooData.name || scrip.name || '',
+    currentPrice, low52w, high52w, timesNear5pct: near5, timesNear10pct: near10,
+    pumpDumpEvents: events, riskLevel, riskScore: score, summary,
+    weeklyPrices: weekly.map(w=>({week:w.date,price:w.close})), stdDev: stdDev.toFixed(1),
+    dataSource: 'Yahoo Finance ('+yahooData.suffix+')' };
+}
+
+// ── ANALYSIS RUNNER ───────────────────────────────
+async function runAnalysis() {
+  if (busy) return;
+  const sel = getSel();
+  if (!sel.length) return;
+  busy = true;
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('progPanel').classList.remove('hidden');
+  document.getElementById('errBox').classList.add('hidden');
+  document.getElementById('resultsSection').classList.remove('hidden');
+
+  const batchSz = parseInt(document.getElementById('batchSize').value) || 3;
+  let done = 0;
+
+  for (let i = 0; i < sel.length; i += batchSz) {
+    const batch = sel.slice(i, i+batchSz);
+    setProgress(done/sel.length*100, `Fetching: ${batch.map(s=>s.symbol).join(', ')}`, `${done}/${sel.length} done`);
+
+    await Promise.all(batch.map(async scrip => {
+      try {
+        const ydata = await fetchYahoo(scrip.symbol);
+        if (!ydata) {
+          renderError(scrip.symbol, 'No data on Yahoo Finance. Either the proxy is blocked (run Connection Test above) or this symbol is not listed. Very small/illiquid SME stocks may not be on Yahoo Finance.');
+          return;
+        }
+        const bhavClose = scrip.close; // from uploaded bhavcopy if any
+        const result = analyzeData(scrip, ydata, bhavClose);
+        results.push(result);
+        renderResult(result);
+        document.getElementById('sbDone').textContent = results.length;
+        document.getElementById('resCount').textContent = results.length + ' result(s)';
+      } catch(e) {
+        renderError(scrip.symbol, e.message);
+      }
+    }));
+    done += batch.length;
+    // Small delay between batches to be polite
+    if (i + batchSz < sel.length) await sleep(600);
+  }
+
+  setProgress(100, '✓ Analysis complete', sel.length + ' scrips processed');
+  setTimeout(()=>document.getElementById('progPanel').classList.add('hidden'), 2500);
+  busy = false;
+  document.getElementById('analyzeBtn').disabled = false;
+}
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function setProgress(pct, msg, detail){
+  document.getElementById('progBar').style.width = pct+'%';
+  document.getElementById('progMsg').textContent = msg;
+  document.getElementById('progDetail').textContent = detail||'';
+}
+
+// ── RENDER ─────────────────────────────────────────
+function renderError(symbol, msg){
+  const div = document.createElement('div');
+  div.className='err-box'; div.style.marginBottom='10px';
+  div.innerHTML=`<strong>${symbol}</strong>: ${msg}`;
+  document.getElementById('resGrid').appendChild(div);
+}
+
+function renderResult(r){
+  const rc={LOW:'var(--green)',MEDIUM:'var(--orange)',HIGH:'var(--red)',EXTREME:'#f00',UNKNOWN:'#88f'}[r.riskLevel]||'var(--text-dim)';
+  const fromLow = r.currentPrice && r.low52w ? '+'+((r.currentPrice-r.low52w)/r.low52w*100).toFixed(1)+'%' : '—';
+  const fromHigh = r.currentPrice && r.high52w ? ((r.currentPrice-r.high52w)/r.high52w*100).toFixed(1)+'%' : '—';
+
+  let chartHTML='';
+  if(r.weeklyPrices&&r.weeklyPrices.length>3) chartHTML=buildChart(r.weeklyPrices,r.low52w,r.high52w);
+
+  let evHTML='';
+  if(r.pumpDumpEvents?.length){
+    evHTML=`<div class="panel-title" style="margin-top:14px;">NOTABLE PRICE EVENTS</div><div class="events-list">` +
+      r.pumpDumpEvents.map(ev=>`<div class="ev-item">
+        <span class="ev-type ${ev.type==='pump'?'ep':ev.type==='dump'?'ed':'epd'}">${ev.type.toUpperCase()}</span>
+        <span class="ev-date">${ev.date}</span>
+        <span>${ev.description}</span></div>`).join('')+'</div>';
+  }
+
+  const card=document.createElement('div'); card.className='result-card'; card.id='rc-'+r.ticker;
+  card.innerHTML=`
+  <div class="result-hdr">
+    <div><div class="rticker">${r.ticker}</div><div class="rname">${r.companyName||''} · ${r.dataSource||''}</div></div>
+    <div class="price-row">
+      <div class="pi"><label>CURRENT</label><div class="v b">₹${f2(r.currentPrice)}</div></div>
+      <div class="pi"><label>52W LOW</label><div class="v r">₹${f2(r.low52w)}</div></div>
+      <div class="pi"><label>52W HIGH</label><div class="v g">₹${f2(r.high52w)}</div></div>
+      <div class="pi"><label>FROM LOW</label><div class="v" style="color:${rc};">${fromLow}</div></div>
+      <div class="pi"><label>FROM HIGH</label><div class="v d">${fromHigh}</div></div>
+      <div class="pi"><label>RISK</label><div class="risk-badge r${r.riskLevel[0]}">${r.riskLevel}</div></div>
+    </div>
+  </div>
+  <div class="rbody">
+    <div class="stats-row">
+      <div class="stat-box"><label>NEAR 52W LOW (±5%)</label><div class="stat-val" style="color:${r.timesNear5pct>3?'var(--red)':'var(--orange)'};">${r.timesNear5pct}</div><div style="font-size:10px;color:var(--text-dim);margin-top:4px;">weeks</div></div>
+      <div class="stat-box"><label>NEAR 52W LOW (±10%)</label><div class="stat-val" style="color:${r.timesNear10pct>5?'var(--red)':'var(--blue)'};">${r.timesNear10pct}</div><div style="font-size:10px;color:var(--text-dim);margin-top:4px;">weeks</div></div>
+      <div class="stat-box"><label>PUMP/DUMP EVENTS</label><div class="stat-val" style="color:${(r.pumpDumpEvents?.length||0)>1?'var(--red)':'var(--green)'};">${r.pumpDumpEvents?.length||0}</div><div style="font-size:10px;color:var(--text-dim);margin-top:4px;">detected</div></div>
+      <div class="stat-box"><label>WEEKLY VOLATILITY σ</label><div class="stat-val" style="color:${r.stdDev>8?'var(--red)':r.stdDev>4?'var(--orange)':'var(--green)'};">${r.stdDev}%</div><div style="font-size:10px;color:var(--text-dim);margin-top:4px;">std dev</div></div>
+      <div class="stat-box"><label>RISK SCORE</label><div class="stat-val" style="color:${rc};">${r.riskScore}<span style="font-size:13px;color:var(--text-dim);">/100</span></div></div>
+    </div>
+    <div class="bar-wrap">
+      <label><span>PUMP &amp; DUMP RISK INDEX</span><span style="color:${rc};">${r.riskScore}/100</span></label>
+      <div class="bar-bg"><div class="bar-fill" style="width:${r.riskScore}%;background:linear-gradient(90deg,var(--blue-dim),${rc});"></div></div>
+    </div>
+    ${chartHTML}
+    ${evHTML}
+    <div class="panel-title" style="margin-top:14px;">ANALYST SUMMARY</div>
+    <div class="summary-box">${r.summary}</div>
+  </div>`;
+  document.getElementById('resGrid').appendChild(card);
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function buildChart(prices, low52w, high52w){
+  const W=560,H=110,P=12;
+  const vals=prices.map(p=>p.price).filter(v=>v!=null&&!isNaN(v));
+  if(!vals.length)return'';
+  const all=[...vals,low52w,high52w].filter(v=>v!=null);
+  const mn=Math.min(...all)*0.96, mx=Math.max(...all)*1.04, rng=mx-mn||1;
+  const ty=v=>H-P-((v-mn)/rng)*(H-2*P);
+  const tx=i=>P+(i/(prices.length-1))*(W-2*P);
+  const pts=prices.map((p,i)=>`${tx(i)},${ty(p.price)}`).join(' ');
+  const ly=ty(low52w), hy=ty(high52w), z5y=ty(low52w*1.05);
+  return `<div class="chart-box">
+    <label>PRICE HISTORY — 52W RANGE (WEEKLY)</label>
+    <svg class="chart-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+      <rect x="${P}" y="${Math.min(ly,z5y)}" width="${W-2*P}" height="${Math.abs(ly-z5y)}" fill="rgba(255,61,31,.1)"/>
+      <line x1="${P}" y1="${ly}" x2="${W-P}" y2="${ly}" stroke="#ff3d1f" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="${W-P-4}" y="${ly-4}" fill="#ff3d1f" font-size="8" text-anchor="end" font-family="monospace">52W LOW ₹${f2(low52w)}</text>
+      <line x1="${P}" y1="${hy}" x2="${W-P}" y2="${hy}" stroke="#00e87a" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="${W-P-4}" y="${hy-4}" fill="#00e87a" font-size="8" text-anchor="end" font-family="monospace">52W HIGH ₹${f2(high52w)}</text>
+      <polyline points="${pts}" fill="none" stroke="#3a9fff" stroke-width="2"/>
+      ${prices.map((p,i)=>`<circle cx="${tx(i)}" cy="${ty(p.price)}" r="2.5" fill="#3a9fff"/>`).join('')}
+    </svg>
+    <div class="legend">
+      <span><span class="b">──</span> Weekly Close (₹)</span>
+      <span><span class="r">- -</span> 52W Low</span>
+      <span><span class="g">- -</span> 52W High</span>
+      <span style="background:rgba(255,61,31,.15);padding:0 6px;">   </span> ±5% Danger Zone
+    </div>
+  </div>`;
+}
+
+// ── UTILS ──────────────────────────────────────────
+function f2(v){ if(v==null||isNaN(v))return'—'; return v<1?v.toFixed(4):v.toFixed(2); }
+
+function clearAll(){
+  results=[]; document.getElementById('resGrid').innerHTML='';
+  document.getElementById('resultsSection').classList.add('hidden');
+  document.getElementById('sbDone').textContent='0';
+}
+
+function exportCSV(){
+  if(!results.length)return;
+  const rows=[['Symbol','Company','Current ₹','52W Low ₹','52W High ₹','From Low%','Near Low 5%','Near Low 10%','Pump/Dump Events','Weekly Vol σ%','Risk Score','Risk Level','Summary']];
+  results.forEach(r=>{
+    const fl=r.currentPrice&&r.low52w?((r.currentPrice-r.low52w)/r.low52w*100).toFixed(1)+'%':'';
+    rows.push([r.ticker,r.companyName||'',r.currentPrice||'',r.low52w||'',r.high52w||'',fl,
+      r.timesNear5pct,r.timesNear10pct,r.pumpDumpEvents?.length||0,r.stdDev,r.riskScore,r.riskLevel,
+      (r.summary||'').replace(/,/g,';')]);
+  });
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'}));
+  a.download='pump_dump_scan_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+
+setInterval(()=>{ document.getElementById('sbTime').textContent=new Date().toLocaleTimeString('en-IN'); },1000);
+</script>
+</body>
+</html>
